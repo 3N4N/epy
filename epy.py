@@ -338,6 +338,7 @@ class Settings:
     PreferredTTSEngine: Optional[str] = None
     TTSEngineArgs: List[str] = field(default_factory=list)
     ParaIndent: int = 0
+    EmdashToTwoHyphens: bool = False
 
 
 @dataclass(frozen=True)
@@ -1076,7 +1077,7 @@ class HTMLtoLines(HTMLParser):
                 groups[row] = [block]
         return groups
 
-    def __init__(self, sects={""}, paraindent=0):
+    def __init__(self, sects={""}, paraindent=0, dashtohyphens=False):
         HTMLParser.__init__(self)
         self.text = [""]
         self.ishead = False
@@ -1095,6 +1096,7 @@ class HTMLtoLines(HTMLParser):
         self.bold_marks: List[TextMark] = []
         self.imgs: Dict[int, str] = dict()
         self.paraindent: int = paraindent
+        self.dashtohyphens: bool = dashtohyphens
 
     def handle_starttag(self, tag, attrs):
         if re.match("h[1-6]", tag) is not None:
@@ -1235,6 +1237,7 @@ class HTMLtoLines(HTMLParser):
 
         for n, line in enumerate(self.text):
 
+            line = line.replace('—', '--') if self.dashtohyphens else line
             startline = len(text)
             # findsect = re.search(r"(?<= \(#).*?(?=\) )", line)
             # if findsect is not None and findsect.group() in self.sects:
@@ -1867,7 +1870,8 @@ def parse_html(
     textwidth: Optional[int] = None,
     section_ids: Optional[Set[str]] = None,
     starting_line: int = 0,
-    paraindent: int = 0
+    paraindent: int = 0,
+    dashtohyphens: bool = True
 ) -> Union[Tuple[str, ...], TextStructure]:
     """
     Parse html string into TextStructure
@@ -1881,7 +1885,7 @@ def parse_html(
     if not section_ids:
         section_ids = set()
 
-    parser = HTMLtoLines(section_ids, paraindent)
+    parser = HTMLtoLines(section_ids, paraindent, dashtohyphens)
     # try:
     parser.feed(html_src)
     parser.close()
@@ -3064,7 +3068,8 @@ class Reader:
             content,
             textwidth=reading_state.textwidth,
             section_ids=set(toc_entry.section for toc_entry in toc_entries),  # type: ignore
-            paraindent=self.setting.ParaIndent
+            paraindent=self.setting.ParaIndent,
+            dashtohyphens=self.setting.EmdashToTwoHyphens
         )
         return text_structure, toc_entries, contents
 
